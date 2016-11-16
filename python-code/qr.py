@@ -338,39 +338,3 @@ class Qr_code:
             }
         qr_code_list = [[replace[j] for j in i] for i in np.swapaxes(qr_code,0,1)]
         png.from_array(qr_code_list, 'L').save(filename)
-def test():
-    for i in range(4,7):
-        for ec in ('L','M','Q','H'):
-            Qr_code('QR-generator met Python 3.5',i,0,ec).to_png('test/%i-%s.png' % (i,ec))
-
-def print_sd(teller=[65, 4, 54, 246, 70, 87, 38, 150, 230, 119, 55, 70, 134, 86, 247, 38, 150, 80, 236, 0, 0, 0, 0, 0, 0, 0],noemer=[1, 127, 122, 154, 164, 11, 68, 117]):
-    print(teller,noemer)
-    w = len(teller)+len(noemer)-1
-    h = len(noemer)+1
-    print(w,h)
-    matrix = [['' for j in range(w)] for i in range(h)]
-    for i,val in enumerate(teller):
-        matrix[0][len(noemer)-1+i] = str(val)
-    for i,val in enumerate(noemer[1:]):
-        matrix[h-2-i][i] = str(val)
-    output = list(teller)
-    # Voor alle diagonalen die passen
-    for i in range(0, len(teller) - (len(noemer)-1)):
-        if output[i] != 0: # log(0) bestaat niet
-            # de eerste coöficiënt van de noemer wordt overgeslagen
-            for j in range(1, len(noemer)):
-                if noemer[j] != 0: # log(0) bestaat niet
-                    # vermenigvuldig en tel op (XOR) bij het getal onderaan
-                    matrix[len(noemer)-j][i+j+len(noemer)-1] = str(gf.mul(noemer[j], output[i]))
-                    output[i+j] ^= gf.mul(noemer[j], output[i])
-    for i,val in enumerate(output):
-        matrix[h-1][len(noemer)-1+i] = str(val)
-    # bepaal de positie van van het verticale streepje streepje
-    # tussen het quotient en de tellen
-    streepje = -(len(noemer)-1)
-    #return output[:streepje], output[streepje:]
-    matrix_tex = ['&'.join(row) for row in matrix]
-    matrix_tex = '\\\\\n'.join(matrix_tex)
-    matrix_tex = '\\begin{tabular}{%s|%s}\n' % ('r' * (len(noemer)-1), 'r' * len(teller)) + matrix_tex
-    matrix_tex += '\n\\end{tabular}'
-    print(matrix_tex)
