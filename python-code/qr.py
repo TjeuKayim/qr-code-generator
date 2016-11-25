@@ -65,7 +65,7 @@ class Qr_code:
     # Initialiseer bewerkingen Galoisveld met de priempolynoom 285
     global gf
     gf = GF(285)
-    def __init__(self,bericht,versie,mask,ec='H'):
+    def __init__(self,bericht,versie=1,mask=0,ec='H'):
         # Controleer of de arguments geldig zijn
         if versie not in range(1,7):
             raise ValueError('Het versienummer moet tussen 1 en 6 liggen')
@@ -75,32 +75,46 @@ class Qr_code:
             raise ValueError("Het bericht moet een 'string' zijn")
         if mask not in range(8):
             raise ValueError('mask moet tussen 1 en 7 liggen')
-
-        # Definiëer variables in huidige `Class'
-        self.versie = versie
-        self.v = versie-1
-        self.grootte = self.v*4+21
-        self.mask = mask
-        self.ec = ec
-        # Initialiseer een lege matrix met Numpy
-        self.matrix = -np.ones((self.grootte,self.grootte),dtype=np.int)
-        # Haal versie informatie op uit de tabel (two-demensional dictionary)
-        info = __class__.versie_info[versie]
-        total = info['total']
-        msg_len = total - info[ec][0]
-        aantal_blocks = info[ec][1]
+        while True:
+            print('Genereer QR-code versie %i-%s' % (versie,ec))
+            # Definiëer variables in huidige `Class'
+            self.versie = versie
+            self.v = versie-1
+            self.grootte = self.v*4+21
+            self.mask = mask
+            self.ec = ec
+            # Initialiseer een lege matrix met Numpy
+            self.matrix = -np.ones((self.grootte,self.grootte),dtype=np.int)
+            # Haal versie informatie op uit de tabel (two-demensional dictionary)
+            info = __class__.versie_info[versie]
+            total = info['total']
+            msg_len = total - info[ec][0]
+            aantal_blocks = info[ec][1]
+            # codeer tekst naar bits met uft8
+            try:
+                self.blocks_bytes = self.encode_to_utf8(bericht,msg_len,aantal_blocks)
+            except ValueError as err:
+                # Is het bericht te lang:
+                print(err)
+                if self.versie == 6:
+                    # is het versienummer 6, stop dan
+                    return
+                # vergroot het versienummer en probeer opnieuw of het past
+                versie += 1
+                continue
+            # Als het bericht past, ga dan verder
+            break
         ec = int(info[ec][0] / aantal_blocks)
-        # codeer tekst naar bits met uft8
-        self.blocks_bytes = self.encode_to_utf8(bericht,msg_len,aantal_blocks)
         # codeer de blocks met de RS-code
-        self.blocks_ec_bytes = [self.rs_encode(block,ec,True) for block in blocks]
+        self.blocks_ec_bytes = [self.rs_encode(block,ec,True) for block in self.blocks_bytes]
         # combineer de data-bytes met de e.c.-bytes tot een string van bits
         qr_bits = self.interleave_blocks(rest = msg_len % aantal_blocks)
         self.voeg_finder_en_timing_patterns_toe()
         self.vul_qr_code(qr_bits)
         self.voeg_format_string_toe()
     # Versie info
-    # Totaal aantal bytes; Aantal E.C-codewoorden; Aantal blocks
+    # total: totaal aantal bytes
+    # (Aantal E.C-codewoorden, Aantal blocks)
     versie_info = {
         1 : {
             'total' : 26,
@@ -159,7 +173,7 @@ class Qr_code:
             bits += '0'
         # past het wel?
         if len(bits) > n*8:
-            raise ValueError('Het te coderen bericht is te groot voor deze versie')
+            raise ValueError('Het te coderen bericht is te groot voor de opgegeven versie')
         # herhaal 11101100 en 00010001 totdat de maximale lengte is bereikt
         i = 0
         while len(bits) != n*8:
@@ -186,15 +200,14 @@ class Qr_code:
     @classmethod
     def rs_encode(cls,msg_in,ec,return_only_ec_bytes=False):
         generator = cls.rs_generator_poly(ec)
-        # Pad the message, then divide it by the irreducible generator polynomial
-        _, rest = gf.poly_div(msg_in + [0] * (len(generator)-1), generator)
-        # The remainder is our RS code! Just append it to our original message to get our full codeword (this represents a polynomial of max 256 terms)
-        msg_out = msg_in + rest
-        # Return the codewords
+        # Maak een berichtpolynoom met als laagste macht het aantal e.c.-codewoorden
+        # en deel dit door de generatorpolynnoom
+        quotient, rest = gf.poly_div(msg_in + [0] * ec, generator)
+        # Return de codewoorden
         if return_only_ec_bytes:
             return rest
         else:
-            return msg_out
+            return msg_in + rest
     # maak een generatorpolynoom voor een bepaald aantal error-correctie codewoorden
     @staticmethod
     def rs_generator_poly(n):
@@ -204,21 +217,23 @@ class Qr_code:
         for i in range(0,n):
             g = gf.poly_mul(g, [1, gf.exp[i]])
         return g
-    def interleave_blocks(rest):
+    def interleave_blocks(self,rest):
+        blocks = self.blocks_bytes
+        ec_blocks = self.blocks_ec_bytes
         qr_bits = ''
         # loop alle kolommen af van de `message codewords' onder elkaar
         for i in range(len(blocks[0])):
             # voeg de `message codewords' toe
-            for msg_bytes in self.blocks_bytes:
+            for msg_bytes in blocks:
                 qr_bits += "{0:08b}".format(msg_bytes[i])
         # als de laatste rijen langer zijn (bij 5-Q en 5-H)
         if rest:
             for i in (2,3):
                 qr_bits += "{0:08b}".format(blocks[i][-1])
         # loop alle kolommen af van de error-correctie codewoorden onder elkaar
-        for i in range(ec):
+        for i in range(len(ec_blocks[0])):
             # voeg de e.c-codewoorden toe
-            for ec_bytes in self.blocks_ec_bytes:
+            for ec_bytes in ec_blocks:
                 qr_bits += "{0:08b}".format(ec_bytes[i])
         return qr_bits
     def voeg_finder_en_timing_patterns_toe(self):
@@ -231,14 +246,12 @@ class Qr_code:
             self.matrix[pos[0]:pos[0]+7,pos[1]:pos[1]+7] = 1
             self.matrix[pos[0]+1:pos[0]+6,pos[1]+1:pos[1]+6] = 0
             self.matrix[pos[0]+2:pos[0]+5,pos[1]+2:pos[1]+5] = 1
-        # `small finder patterns'
-        def sm_finder(i):
-            ''' voeg `small finder pattern' toe '''
+        # `alignment pattern'
+        if self.versie>1:
+            i = g-7
             self.matrix[i-2:i+3,i-2:i+3] = 1
             self.matrix[i-1:i+2,i-1:i+2] = 0
             self.matrix[(i,i)] = 1
-        if self.versie>1:
-            sm_finder(g-7)
         # voeg `timing patterns' toe (stippellijntjes)
         for i in range(8,g-8,2):
             self.matrix[(i,6)] = self.matrix[(6,i)] = 1
@@ -260,8 +273,11 @@ class Qr_code:
         pos = np.array((g-1,g-1))
         last_bit = len(qr_bits)-1
         for i,bit in enumerate(qr_bits):
-            #qr_code[post] = bit
-            self.matrix[tuple(pos)] = bit if masking[self.mask](pos[0],pos[1]) else 1-int(bit)
+            # stel de mask-formule gelijk aan 0
+            mask = int(masking[self.mask](pos[0],pos[1]) == 0)
+            # verwissel een 1 met een 0 als de vergelijking waar is
+            self.matrix[tuple(pos)] = str( mask ^ int(bit) )
+            # self.matrix[tuple(pos)] = bit
             if i==last_bit:
                 break
             if tuple(pos) == (7,9):
@@ -275,15 +291,13 @@ class Qr_code:
                     dir = 'down'
                 if (pos[0]%2 and pos[0]<6) or (not pos[0]%2 and pos[0]>6):
                     pos += (-1,0)
-                    # <--
                 # einde van de kolom
                 elif (dir=='up' and pos[1]==0) or (dir=='down' and pos[1]==g-1):
                     pos += (-1,0)
-                    # <--
                 else:
                     pos += (1,(-1 if dir=='up' else 1))
                 if self.matrix[tuple(pos)] == -1:
-                    # als het vakje niet vrij is, zoek verder naar een leeg vakje
+                    # als de module leeg is, zoek dan niet verder
                     break
         # maak overige pixels wit
         for i in range(0,g):
@@ -338,3 +352,37 @@ class Qr_code:
             }
         qr_code_list = [[replace[j] for j in i] for i in np.swapaxes(qr_code,0,1)]
         png.from_array(qr_code_list, 'L').save(filename)
+
+
+def print_sd(teller=[65, 4, 54, 246, 70, 87, 38, 150, 230, 119, 55, 70, 134, 86, 247, 38, 150, 80, 236, 0, 0, 0, 0, 0, 0, 0],noemer=[1, 127, 122, 154, 164, 11, 68, 117]):
+    ''' Print de syntethische deling in latex '''
+    print(teller,noemer)
+    w = len(teller)+len(noemer)-1
+    h = len(noemer)+1
+    print(w,h)
+    matrix = [['' for j in range(w)] for i in range(h)]
+    for i,val in enumerate(teller):
+        matrix[0][len(noemer)-1+i] = str(val)
+    for i,val in enumerate(noemer[1:]):
+        matrix[h-2-i][i] = str(val)
+    output = list(teller)
+    # Voor alle diagonalen die passen
+    for i in range(0, len(teller) - (len(noemer)-1)):
+        if output[i] != 0: # log(0) bestaat niet
+            # de eerste coöficiënt van de noemer wordt overgeslagen
+            for j in range(1, len(noemer)):
+                if noemer[j] != 0: # log(0) bestaat niet
+                    # vermenigvuldig en tel op (XOR) bij het getal onderaan
+                    matrix[len(noemer)-j][i+j+len(noemer)-1] = str(gf.mul(noemer[j], output[i]))
+                    output[i+j] ^= gf.mul(noemer[j], output[i])
+    for i,val in enumerate(output):
+        matrix[h-1][len(noemer)-1+i] = str(val)
+    # bepaal de positie van van het verticale streepje streepje
+    # tussen het quotient en de tellen
+    streepje = -(len(noemer)-1)
+    #return output[:streepje], output[streepje:]
+    matrix_tex = ['&'.join(row) for row in matrix]
+    matrix_tex = '\\\\\n'.join(matrix_tex)
+    matrix_tex = '\\begin{tabular}{%s|%s}\n' % ('r' * (len(noemer)-1), 'r' * len(teller)) + matrix_tex
+    matrix_tex += '\n\\end{tabular}'
+    print(matrix_tex)
