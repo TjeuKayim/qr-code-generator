@@ -4,15 +4,14 @@ from qr import Qr_code
 app = Flask(__name__)
 
 @app.route("/")
-def hello():
-    return "Hello World!!!"
+def home():
+    return '{"active":true}'
 
 @app.route("/qr.svg")
 def svg():
-    data = request.cookies.get('qr-data', default='')
-    data = 'Test'
+    data = request.args.get('qr-data', '')
     if data == '': return
-    ec = request.cookies.get('qr-ec', default='H')
+    ec = request.args.get('qr-ec', 'H')
     return Qr_code(data, ec=ec).to_svg()
 
 if __name__ == "__main__":
