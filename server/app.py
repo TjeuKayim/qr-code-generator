@@ -12,6 +12,7 @@ def svg():
     data = request.args.get('qr-data', '')
     if data == '': return
     ec = request.args.get('qr-ec', 'H')
+    if ec not in ['L', 'M', 'Q', 'H']: ec = 'H'
     return Qr_code(data, ec=ec).to_svg()
 
 if __name__ == "__main__":
