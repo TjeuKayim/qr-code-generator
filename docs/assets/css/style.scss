@@ -3,4 +3,30 @@
 
 @import "{{ site.theme }}";
 
-/* test */
+#get-qr>label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+#get-qr>label>* {
+  display: block;
+}
+
+#get-qr textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+/* simple flex grid (https://css-tricks.com/dont-overthink-flexbox-grids/)*/
+.flex-grid {
+  display: flex;
+}
+.col {
+  flex: 1;
+}
+
+@media (max-width: 400px) {
+  .flex-grid {
+    display: block;
+  }
+}

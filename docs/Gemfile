@@ -1,2 +1,3 @@
-source 'https://gems.example.com'
+source 'https://rubygems.org'
+gem 'jekyll-babel'
 gem "github-pages", group: :jekyll_plugins

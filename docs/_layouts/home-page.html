@@ -1,6 +1,29 @@
 ---
 layout: default
 ---
-before
+
+<h1>QR-code generator</h1>
+<div class="flex-grid">
+  <form id="get-qr" class="col">
+    <label>
+      Type hier de tekst:
+      <textarea name="qr-data" required></textarea>
+    </label>
+    <label>
+      Error-correctie:
+      <select name="qr-ec">
+        <option value="L">Low</option>
+        <option value="M">Medium</option>
+        <option value="Q">Quality</option>
+        <option value="H">High</option>
+      </select>
+    </label>
+    <input type="submit" value="Maak QR-code">
+  </form>
+  <div class="col">
+    <img id='qr-img' src='http://tjeu.pythonanywhere.com/qr.svg' alt='QR-code'>
+  </div>
+</div>
+
 {{ content }}
-after
+<script src="{{ '/assets/js/qr-code-generator.js.es6?v=' | append: site.github.build_revision | relative_url }}"></script>
