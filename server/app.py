@@ -12,7 +12,7 @@ def svg():
     data = request.args.get('qr-data', 'https://tjeukayim.github.io/qr-codes/')
     ec = request.args.get('qr-ec', 'H')
     if ec not in ['L', 'M', 'Q', 'H']: ec = 'H'
-    return Qr_code(data, ec=ec).to_svg(), 200, {'Content-Type': 'image/svg+xml;'}
+    return Qr_code(data, ec=ec).to_svg(), 200, {'Content-Type': 'image/svg+xml'}
 
 if __name__ == "__main__":
     app.run()
