@@ -3,6 +3,10 @@
 
 @import "{{ site.theme }}";
 
+body {
+  color: black;
+}
+
 #get-qr>label {
   display: block;
   margin-bottom: 10px;
@@ -15,6 +19,19 @@
 #get-qr textarea {
   width: 100%;
   resize: vertical;
+}
+
+#drag-me {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100px;
+  width: 100px;
+  resize: both;
+  overflow: hidden;
+  background: grey;
+  text-align: center;
+  display: none;
 }
 
 /* simple flex grid (https://css-tricks.com/dont-overthink-flexbox-grids/)*/

@@ -6,7 +6,7 @@ layout: default
 <div class="flex-grid">
   <form id="get-qr" class="col">
     <label>
-      Type hier de tekst:
+      Data:
       <textarea name="qr-data" required></textarea>
     </label>
     <label>
@@ -24,6 +24,8 @@ layout: default
     <img id='qr-img' src='https://tjeu.pythonanywhere.com/qr.svg' alt='QR-code'>
   </div>
 </div>
+<div id="drag-me"><span>Drag</span></div>
+<button onclick="showDragMe()">Test Error Correctie</button>
 
 {{ content }}
 <script src="{{ '/assets/js/qr-code-generator.js?v=' | append: site.github.build_revision | relative_url }}"></script>
